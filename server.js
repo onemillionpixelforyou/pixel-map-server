@@ -113,9 +113,9 @@ app.post('/api/create-payment', async (req, res) => {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const returnUrl = `${baseUrl}/api/payment/callback?transaction=${transactionId}`;
 
-        // Ссылка на DonationAlerts
-        const donationAlertsUrl = 'https://www.donationalerts.com/payment';
-        const paymentUrl = `${donationAlertsUrl}?amount=${totalPrice}&currency=RUB&message=Покупка%20${blocks.length}%20блоков%20на%20Pixel%20Map&return_url=${encodeURIComponent(returnUrl)}`;
+// Ссылка на DonationAlerts
+const donationAlertsUrl = 'https://www.donationalerts.com/payment';
+const paymentUrl = `${donationAlertsUrl}?amount=${totalPrice}&currency=RUB&message=Покупка%20${blocks.length}%20блоков%20на%20Pixel%20Map&return_url=${encodeURIComponent(returnUrl)}`;
 
         res.json({
             success: true,
