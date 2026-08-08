@@ -48,18 +48,22 @@ initDataFile();
 
 // ===== API ЭНДПОИНТЫ =====
 
-// Получение всех пикселей
+// 1. Получение всех пикселей (синхронизация)
 app.get('/api/pixels', async (req, res) => {
     try {
         const data = await loadData();
-        res.json(data.sold);
+        res.json({
+            sold: data.sold,
+            stats: data.stats,
+            timestamp: new Date().toISOString()
+        });
     } catch (error) {
         console.error('Error fetching pixels:', error);
         res.status(500).json({ error: 'Ошибка загрузки данных' });
     }
 });
 
-// Создание платежа
+// 2. Создание платежа
 app.post('/api/create-payment', async (req, res) => {
     try {
         const { blocks, color, image, link, slogan, totalPrice } = req.body;
@@ -113,9 +117,11 @@ app.post('/api/create-payment', async (req, res) => {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const returnUrl = `${baseUrl}/api/payment/callback?transaction=${transactionId}`;
 
-// Ссылка на DonationAlerts
-const donationAlertsUrl = 'https://www.donationalerts.com/payment';
-const paymentUrl = `${donationAlertsUrl}?amount=${totalPrice}&currency=RUB&message=Покупка%20${blocks.length}%20блоков%20на%20Pixel%20Map&return_url=${encodeURIComponent(returnUrl)}`;
+        // Ссылка на DonationAlerts (используем прямую ссылку на ваш аккаунт)
+        const donationAlertsUrl = 'https://www.donationalerts.com/payment';
+        const paymentUrl = `${donationAlertsUrl}?amount=${totalPrice}&currency=RUB&message=Покупка%20${blocks.length}%20блоков%20на%20Pixel%20Map&return_url=${encodeURIComponent(returnUrl)}`;
+
+        console.log('🔗 Ссылка для оплаты:', paymentUrl);
 
         res.json({
             success: true,
@@ -130,7 +136,7 @@ const paymentUrl = `${donationAlertsUrl}?amount=${totalPrice}&currency=RUB&messa
     }
 });
 
-// Колбэк после оплаты
+// 3. Колбэк после оплаты (автоматическая активация)
 app.get('/api/payment/callback', async (req, res) => {
     try {
         const { transaction, payment_id, status } = req.query;
@@ -151,21 +157,23 @@ app.get('/api/payment/callback', async (req, res) => {
 
         const tx = data.transactions[txIndex];
 
+        // Если уже завершена
         if (tx.status === 'completed') {
             return res.redirect(`/?payment=already_completed&transaction=${transaction}`);
         }
 
-        // В реальном проекте здесь должна быть верификация через API DonationAlerts
-        // Сейчас упрощённая версия - считаем успешным
+        // Верификация платежа (упрощённая)
+        // В реальном проекте здесь должен быть запрос к API DonationAlerts
         const isVerified = true;
 
         if (isVerified) {
+            // Активируем блоки
             tx.status = 'completed';
             tx.paymentId = payment_id || 'test_payment';
             tx.completedAt = new Date().toISOString();
             tx.updatedAt = new Date().toISOString();
 
-            // Сохраняем блоки
+            // Сохраняем блоки в sold
             tx.blocks.forEach(blockId => {
                 data.sold[blockId] = {
                     color: tx.color,
@@ -183,8 +191,9 @@ app.get('/api/payment/callback', async (req, res) => {
 
             await saveData(data);
 
-            console.log(`✅ Транзакция #${transaction} завершена успешно! Активировано ${tx.blocks.length} блоков`);
+            console.log(`✅ Транзакция #${transaction} завершена! Активировано ${tx.blocks.length} блоков`);
 
+            // Перенаправляем на сайт с подтверждением
             return res.redirect(`/?payment=success&transaction=${transaction}`);
         } else {
             tx.status = 'failed';
@@ -202,7 +211,7 @@ app.get('/api/payment/callback', async (req, res) => {
     }
 });
 
-// Получение статуса транзакции
+// 4. Получение статуса транзакции
 app.get('/api/transaction/:id', async (req, res) => {
     try {
         const data = await loadData();
@@ -224,11 +233,15 @@ app.get('/api/transaction/:id', async (req, res) => {
     }
 });
 
-// Webhook для DonationAlerts
+// 5. Webhook для DonationAlerts (автоматическое подтверждение)
 app.post('/api/webhook/donationalerts', async (req, res) => {
     try {
         const webhookData = req.body;
         console.log('📨 Получен webhook:', webhookData);
+
+        // Здесь можно обработать уведомление о платеже
+        // и автоматически активировать блоки
+
         res.status(200).json({ success: true });
     } catch (error) {
         console.error('Webhook error:', error);
@@ -236,7 +249,7 @@ app.post('/api/webhook/donationalerts', async (req, res) => {
     }
 });
 
-// === Health Check для Render ===
+// 6. Health Check для Render
 app.get('/healthz', (req, res) => {
     res.status(200).send('OK');
 });
