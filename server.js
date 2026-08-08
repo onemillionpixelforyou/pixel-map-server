@@ -236,6 +236,11 @@ app.post('/api/webhook/donationalerts', async (req, res) => {
     }
 });
 
+// === Health Check для Render ===
+app.get('/healthz', (req, res) => {
+    res.status(200).send('OK');
+});
+
 // Запуск сервера
 app.listen(PORT, () => {
     console.log(`🚀 Pixel Map Server запущен на порту ${PORT}`);
